@@ -9,6 +9,24 @@ public final class Earcut {
     private Earcut() {
     };
 
+    /**
+     * Triangulates the given polygon
+     * 
+     * @param data is a flat array of vertice coordinates like [x0,y0, x1,y1, x2,y2, ...].
+     * @return List containing groups of three vertice indices in the resulting array forms a triangle.
+     */
+    public static List<Integer> earcut(double[] data) {
+        return earcut(data, null, 2);
+    }
+    
+    /**
+     * Triangulates the given polygon
+     * 
+     * @param data is a flat array of vertice coordinates like [x0,y0, x1,y1, x2,y2, ...].
+     * @param holeIndices is an array of hole indices if any (e.g. [5, 8] for a 12-vertice input would mean one hole with vertices 5–7 and another with 8–11).
+     * @param dim  is the number of coordinates per vertice in the input array
+     * @return List containing groups of three vertice indices in the resulting array forms a triangle.
+     */
     public static List<Integer> earcut(double[] data, int[] holeIndices, int dim) {
 
         boolean hasHoles = holeIndices != null && holeIndices.length > 0;
