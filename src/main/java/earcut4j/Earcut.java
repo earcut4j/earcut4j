@@ -67,12 +67,12 @@ public final class Earcut {
         if (pass == Integer.MIN_VALUE && size != Double.MIN_VALUE)
             indexCurve(ear, minX, minY, size);
 
-        Node stop = ear, prev, next;
+        Node stop = ear;
 
         // iterate through ears, slicing them one by one
         while (ear.prev != ear.next) {
-            prev = ear.prev;
-            next = ear.next;
+            Node prev = ear.prev;
+            Node next = ear.next;
 
             if (size != Double.MIN_VALUE ? isEarHashed(ear, minX, minY, size) : isEar(ear)) {
                 // cut off the triangle
@@ -217,7 +217,9 @@ public final class Earcut {
     }
 
     private static boolean isEarHashed(Node ear, double minX, double minY, double size) {
-        Node a = ear.prev, b = ear, c = ear.next;
+        Node a = ear.prev;
+        Node b = ear;
+        Node c = ear.next;
 
         if (area(a, b, c) >= 0)
             return false; // reflex, can't be an ear
@@ -286,21 +288,21 @@ public final class Earcut {
     }
 
     private static Node sortLinked(Node list) {
-        int i, inSize = 1;
-        Node p, q, e, tail;
+        int inSize = 1;
+        
 
         int numMerges;
         do {
-            p = list;
+            Node p = list;
             list = null;
-            tail = null;
+            Node tail = null;
             numMerges = 0;
 
             while (p != null) {
                 numMerges++;
-                q = p;
+                Node q = p;
                 int pSize = 0;
-                for (i = 0; i < inSize; i++) {
+                for (int i = 0; i < inSize; i++) {
                     pSize++;
                     q = q.nextZ;
                     if (q == null)
@@ -310,7 +312,7 @@ public final class Earcut {
                 int qSize = inSize;
 
                 while (pSize > 0 || (qSize > 0 && q != null)) {
-
+                    Node e;
                     if (pSize == 0) {
                         e = q;
                         q = q.nextZ;
@@ -351,14 +353,12 @@ public final class Earcut {
 
     private static Node eliminateHoles(double[] data, int[] holeIndices, Node outerNode, int dim) {
         List<Node> queue = new ArrayList<>();
-        int start, end;
-        Node list;
 
         int len = holeIndices.length;
         for (int i = 0; i < len; i++) {
-            start = holeIndices[i] * dim;
-            end = i < len - 1 ? holeIndices[i + 1] * dim : data.length;
-            list = linkedList(data, start, end, dim, false);
+            int start = holeIndices[i] * dim;
+            int end = i < len - 1 ? holeIndices[i + 1] * dim : data.length;
+            Node list = linkedList(data, start, end, dim, false);
             if (list == list.next)
                 list.steiner = true;
             queue.add(getLeftmost(list));
