@@ -28,4 +28,9 @@ public class Test01 {
         Assert.assertArrayEquals(new Object[] {1,0,3, 3,2,1}, triangles.toArray());
     }
 
+    @Test
+    public void issue2() {
+        List<Integer> triangles = Earcut.earcut(new double[] { 5400.0, 200.0, 0.0, 5400.0, 200.0, 5000.0, 5400.0, 0.0, 5000.0, 5400.0, 0.0, 0.0 }, null, 3);
+        System.out.println(triangles);
+    }
 }
