@@ -23,7 +23,7 @@ public final class Earcut {
      * Triangulates the given polygon
      * 
      * @param data is a flat array of vertice coordinates like [x0,y0, x1,y1, x2,y2, ...].
-     * @param holeIndices is an array of hole indices if any (e.g. [5, 8] for a 12-vertice input would mean one hole with vertices 5–7 and another with 8–11).
+     * @param holeIndices is an array of hole indices if any (e.g. [5, 8] for a 12-vertice input would mean one hole with vertices 5ï¿½7 and another with 8ï¿½11).
      * @param dim  is the number of coordinates per vertice in the input array
      * @return List containing groups of three vertice indices in the resulting array forms a triangle.
      */
@@ -36,14 +36,14 @@ public final class Earcut {
 
         List<Integer> triangles = new ArrayList<>();
 
-        if (outerNode == null)
+        if (outerNode == null || outerNode.next == outerNode.prev)
             return triangles;
 
         double minX = 0;
         double minY = 0;
         double maxX = 0;
         double maxY = 0;
-        double size = Double.MIN_VALUE;
+        double invSize = Double.MIN_VALUE;
 
         if (hasHoles)
             outerNode = eliminateHoles(data, holeIndices, outerNode, dim);
@@ -69,21 +69,22 @@ public final class Earcut {
 
             // minX, minY and size are later used to transform coords into
             // integers for z-order calculation
-            size = Math.max(maxX - minX, maxY - minY);
+            invSize = Math.max(maxX - minX, maxY - minY);
+            invSize = invSize != 0.0 ? 1.0 / invSize : 0.0;
         }
 
-        earcutLinked(outerNode, triangles, dim, minX, minY, size, Integer.MIN_VALUE);
+        earcutLinked(outerNode, triangles, dim, minX, minY, invSize, Integer.MIN_VALUE);
 
         return triangles;
     }
 
-    private static void earcutLinked(Node ear, List<Integer> triangles, int dim, double minX, double minY, double size, int pass) {
+    private static void earcutLinked(Node ear, List<Integer> triangles, int dim, double minX, double minY, double invSize, int pass) {
         if (ear == null)
             return;
 
         // interlink polygon nodes in z-order
-        if (pass == Integer.MIN_VALUE && size != Double.MIN_VALUE)
-            indexCurve(ear, minX, minY, size);
+        if (pass == Integer.MIN_VALUE && invSize != Double.MIN_VALUE)
+            indexCurve(ear, minX, minY, invSize);
 
         Node stop = ear;
 
@@ -92,7 +93,7 @@ public final class Earcut {
             Node prev = ear.prev;
             Node next = ear.next;
 
-            if (size != Double.MIN_VALUE ? isEarHashed(ear, minX, minY, size) : isEar(ear)) {
+            if (invSize != Double.MIN_VALUE ? isEarHashed(ear, minX, minY, invSize) : isEar(ear)) {
                 // cut off the triangle
                 triangles.add(prev.i / dim);
                 triangles.add(ear.i / dim);
@@ -114,18 +115,18 @@ public final class Earcut {
             if (ear == stop) {
                 // try filtering points and slicing again
                 if (pass == Integer.MIN_VALUE) {
-                    earcutLinked(filterPoints(ear, null), triangles, dim, minX, minY, size, 1);
+                    earcutLinked(filterPoints(ear, null), triangles, dim, minX, minY, invSize, 1);
 
                     // if this didn't work, try curing all small
                     // self-intersections locally
                 } else if (pass == 1) {
-                    ear = cureLocalIntersections(ear, triangles, dim);
-                    earcutLinked(ear, triangles, dim, minX, minY, size, 2);
+                    ear = cureLocalIntersections(filterPoints(ear, null), triangles, dim);
+                    earcutLinked(ear, triangles, dim, minX, minY, invSize, 2);
 
                     // as a last resort, try splitting the remaining polygon
                     // into two
                 } else if (pass == 2) {
-                    splitEarcut(ear, triangles, dim, minX, minY, size);
+                    splitEarcut(ear, triangles, dim, minX, minY, invSize);
                 }
 
                 break;
@@ -159,7 +160,12 @@ public final class Earcut {
     }
 
     private static boolean isValidDiagonal(Node a, Node b) {
-        return a.next.i != b.i && a.prev.i != b.i && !intersectsPolygon(a, b) && locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b);
+        //return a.next.i != b.i && a.prev.i != b.i && !intersectsPolygon(a, b) && locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b);
+
+        return a.next.i != b.i && a.prev.i != b.i && !intersectsPolygon(a, b) && // dones't intersect other edges
+            (locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && // locally visible
+            (area(a.prev, a, b.prev) != 0 || area(a, b.prev, b) != 0) || // does not create opposite-facing sectors
+            equals(a, b) && area(a.prev, a, a.next) > 0 && area(b.prev, b, b.next) > 0); // special zero-length case
     }
 
     private static boolean middleInside(Node a, Node b) {
@@ -188,9 +194,35 @@ public final class Earcut {
     }
 
     private static boolean intersects(Node p1, Node q1, Node p2, Node q2) {
-        if ((equals(p1, q1) && equals(p2, q2)) || (equals(p1, q2) && equals(p2, q1)))
+        if ((equals(p1, p2) && equals(q1, q2)) || (equals(p1, q2) && equals(p2, q1)))
             return true;
-        return area(p1, q1, p2) > 0 != area(p1, q1, q2) > 0 && area(p2, q2, p1) > 0 != area(p2, q2, q1) > 0;
+        double o1 = sign(area(p1, q1, p2));
+        double o2 = sign(area(p1, q1, q2));
+        double o3 = sign(area(p2, q2, p1));
+        double o4 = sign(area(p2, q2, q1));
+
+        if (o1 != o2 && o3 != o4)
+            return true; // general case
+
+        if (o1 == 0 && onSegment(p1, p2, q1))
+            return true; // p1, q1 and p2 are collinear and p2 lies on p1q1
+        if (o2 == 0 && onSegment(p1, q2, q1))
+            return true; // p1, q1 and q2 are collinear and q2 lies on p1q1
+        if (o3 == 0 && onSegment(p2, p1, q2))
+            return true; // p2, q2 and p1 are collinear and p1 lies on p2q2
+        if (o4 == 0 && onSegment(p2, q1, q2))
+            return true; // p2, q2 and q1 are collinear and q1 lies on p2q2
+
+        return false;
+    }
+
+    // for collinear points p, q, r, check if point q lies on segment pr
+    private static boolean onSegment(Node p, Node q, Node r) {
+        return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) && q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
+    }
+
+    private static double sign(double num) {
+        return num > 0 ? 1 : num < 0 ? -1 : 0;
     }
 
     private static Node cureLocalIntersections(Node start, List<Integer> triangles, int dim) {
@@ -213,7 +245,7 @@ public final class Earcut {
             p = p.next;
         } while (p != start);
 
-        return p;
+        return filterPoints(p, null);
     }
 
     private static boolean isEar(Node ear) {
@@ -234,7 +266,7 @@ public final class Earcut {
         return true;
     }
 
-    private static boolean isEarHashed(Node ear, double minX, double minY, double size) {
+    private static boolean isEarHashed(Node ear, double minX, double minY, double invSize) {
         Node a = ear.prev;
         Node b = ear;
         Node c = ear.next;
@@ -247,53 +279,64 @@ public final class Earcut {
                 maxTX = a.x > b.x ? (a.x > c.x ? a.x : c.x) : (b.x > c.x ? b.x : c.x), maxTY = a.y > b.y ? (a.y > c.y ? a.y : c.y) : (b.y > c.y ? b.y : c.y);
 
         // z-order range for the current triangle bbox;
-        double minZ = zOrder(minTX, minTY, minX, minY, size);
-        double maxZ = zOrder(maxTX, maxTY, minX, minY, size);
+        double minZ = zOrder(minTX, minTY, minX, minY, invSize);
+        double maxZ = zOrder(maxTX, maxTY, minX, minY, invSize);
 
         // first look for points inside the triangle in increasing z-order
-        Node p = ear.nextZ;
+        Node p = ear.prevZ;
+        Node n = ear.nextZ;
 
-        while (p != null && p.z <= maxZ) {
+        while (p != null && p.z >= minZ && n != null && n.z <= maxZ) {
             if (p != ear.prev && p != ear.next && pointInTriangle(a.x, a.y, b.x, b.y, c.x, c.y, p.x, p.y) && area(p.prev, p, p.next) >= 0)
                 return false;
-            p = p.nextZ;
+            p = p.prevZ;
+
+            if (n != ear.prev && n != ear.next && pointInTriangle(a.x, a.y, b.x, b.y, c.x, c.y, n.x, n.y) && area(n.prev, n, n.next) >= 0)
+                return false;
+            n = n.nextZ;
         }
 
-        // then look for points in decreasing z-order
-        p = ear.prevZ;
-
+        // look for remaining points in decreasing z-order
         while (p != null && p.z >= minZ) {
             if (p != ear.prev && p != ear.next && pointInTriangle(a.x, a.y, b.x, b.y, c.x, c.y, p.x, p.y) && area(p.prev, p, p.next) >= 0)
                 return false;
             p = p.prevZ;
         }
 
+        // look for remaining points in increasing z-order
+        while (n != null && n.z <= maxZ) {
+            if (n != ear.prev && n != ear.next && pointInTriangle(a.x, a.y, b.x, b.y, c.x, c.y, n.x, n.y) && area(n.prev, n, n.next) >= 0)
+                return false;
+            n = n.nextZ;
+        }
+
         return true;
     }
 
-    private static double zOrder(double x, double y, double minX, double minY, double size) {
+    // z-order of a point given coords and inverse of the longer side of data bbox
+    private static double zOrder(double x, double y, double minX, double minY, double invSize) {
         // coords are transformed into non-negative 15-bit integer range
-        int lx = new Double(32767 * (x - minX) / size).intValue();
-        int ly = new Double(32767 * (y - minY) / size).intValue();
+        int lx = Double.valueOf(32767 * (x - minX) * invSize).intValue();
+        int ly = Double.valueOf(32767 * (y - minY) * invSize).intValue();
 
         lx = (lx | (lx << 8)) & 0x00FF00FF;
         lx = (lx | (lx << 4)) & 0x0F0F0F0F;
         lx = (lx | (lx << 2)) & 0x33333333;
         lx = (lx | (lx << 1)) & 0x55555555;
 
-        y = (ly | (ly << 8)) & 0x00FF00FF;
-        y = (ly | (ly << 4)) & 0x0F0F0F0F;
-        y = (ly | (ly << 2)) & 0x33333333;
-        y = (ly | (ly << 1)) & 0x55555555;
+        ly = (ly | (ly << 8)) & 0x00FF00FF;
+        ly = (ly | (ly << 4)) & 0x0F0F0F0F;
+        ly = (ly | (ly << 2)) & 0x33333333;
+        ly = (ly | (ly << 1)) & 0x55555555;
 
         return lx | (ly << 1);
     }
 
-    private static void indexCurve(Node start, double minX, double minY, double size) {
+    private static void indexCurve(Node start, double minX, double minY, double invSize) {
         Node p = start;
         do {
             if (p.z == Double.MIN_VALUE)
-                p.z = zOrder(p.x, p.y, minX, minY, size);
+                p.z = zOrder(p.x, p.y, minX, minY, invSize);
             p.prevZ = p.prev;
             p.nextZ = p.next;
             p = p.next;
@@ -418,7 +461,7 @@ public final class Earcut {
                 removeNode(p);
                 p = end = p.prev;
                 if (p == p.next)
-                    return null;
+                    break;
                 again = true;
             } else {
                 p = p.next;
@@ -440,6 +483,9 @@ public final class Earcut {
         outerNode = findHoleBridge(hole, outerNode);
         if (outerNode != null) {
             Node b = splitPolygon(outerNode, hole);
+            
+            // filter collinear points around the cuts
+            filterPoints(outerNode, outerNode.next);
             filterPoints(b, b.next);
         }
     }
@@ -498,7 +544,7 @@ public final class Earcut {
             return null;
 
         if (hx == qx)
-            return m.prev; // hole touches outer segment; pick lower endpoint
+            return m; // hole touches outer segment; pick leftmost endpoint
 
         // look for points inside the triangle of hole point, segment
         // intersection and endpoint;
@@ -512,14 +558,14 @@ public final class Earcut {
         double tanMin = Double.MAX_VALUE;
         double tan;
 
-        p = m.next;
+        p = m;
 
         while (p != stop) {
             if (hx >= p.x && p.x >= mx && pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p.x, p.y)) {
 
                 tan = Math.abs(hy - p.y) / (hx - p.x); // tangential
 
-                if ((tan < tanMin || (tan == tanMin && p.x > m.x)) && locallyInside(p, hole)) {
+                if (locallyInside(p, hole) && (tan < tanMin || (tan == tanMin && (p.x > m.x || (p.x == m.x && sectorContainsSector(m, p)))))) {
                     m = p;
                     tanMin = tan;
                 }
@@ -535,6 +581,12 @@ public final class Earcut {
         return area(a.prev, a, a.next) < 0 ? area(a, b, a.next) >= 0 && area(a, a.prev, b) >= 0 : area(a, b, a.prev) < 0 || area(a, a.next, b) < 0;
     }
 
+    // whether sector in vertex m contains sector in vertex p in the same
+    // coordinates
+    private static boolean sectorContainsSector(Node m, Node p) {
+        return area(m.prev, m, p.prev) < 0 && area(p.next, m, m.next) < 0;
+    }
+
     private static boolean pointInTriangle(double ax, double ay, double bx, double by, double cx, double cy, double px, double py) {
         return (cx - px) * (ay - py) - (ax - px) * (cy - py) >= 0 && (ax - px) * (by - py) - (bx - px) * (ay - py) >= 0
                 && (bx - px) * (cy - py) - (cx - px) * (by - py) >= 0;
@@ -544,7 +596,7 @@ public final class Earcut {
         Node p = start;
         Node leftmost = start;
         do {
-            if (p.x < leftmost.x)
+            if (p.x < leftmost.x || (p.x == leftmost.x && p.y < leftmost.y))
                 leftmost = p;
             p = p.next;
         } while (p != start);
