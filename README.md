@@ -14,6 +14,28 @@ It's based on ideas from
 [FIST: Fast Industrial-Strength Triangulation of Polygons](http://www.cosy.sbg.ac.at/~held/projects/triang/triang.html) by Martin Held
 and [Triangulation by Ear Clipping](http://www.geometrictools.com/Documentation/TriangulationByEarClipping.pdf) by David Eberly.
 
+#### Installation
+
+Download the latest version:
+
+##### Maven dependency:
+
+```XML
+<dependency>
+  <groupId>io.github.earcut4j</groupId>
+  <artifactId>earcut4j</artifactId>
+  <version>2.2.2</version>
+</dependency>
+```
+       
+##### Or when using Gradle:
+
+```groovy
+dependencies {
+  compile "io.github.earcut4j:earcut4j:2.2.2"
+}
+```
+
 #### Usage
 
 ```java
