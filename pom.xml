@@ -1,9 +1,8 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.earcut4j</groupId>
     <artifactId>earcut4j</artifactId>
-    <version>2.2.2-SNAPSHOT</version>
+    <version>2.2.2</version>
     <name>earcut4j</name>
     <description>earcut4j for polygon triangulation</description>
 
@@ -50,7 +49,7 @@
         <connection>scm:git:git://github.com/earcut4j/earcut4j.git</connection>
         <developerConnection>scm:git:git@github.com:earcut4j/earcut4j.git</developerConnection>
         <url>https://github.com/earcut4j/earcut4j</url>
-        <tag>HEAD</tag>
+        <tag>v2.2.2</tag>
     </scm>
 
     <profiles>
@@ -116,7 +115,7 @@
                     <localCheckout>true</localCheckout>
                     <pushChanges>false</pushChanges>
                     <mavenExecutorId>forked-path</mavenExecutorId>
-                    <arguments>-Dgpg.passphrase=${gpg.passphrase}</arguments>
+                    <arguments>-Dgpg.passphrase=${gpg.passphrases}</arguments>
                 </configuration>
                 <dependencies>
                     <dependency>
