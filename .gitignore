@@ -1,5 +1,6 @@
 /target
 .env
+.classpath
 
 release.properties
 pom.xml.releaseBackup
