@@ -698,8 +698,15 @@ public final class Earcut {
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            sb.append("{i: ").append(i).append(", x: ").append(x).append(", y: ").append(y).append(", prev: ").append(prev).append(", next: ").append(next);
+            sb.append("{i: ").append(i).append(", x: ").append(x).append(", y: ").append(y).append(", prev: ").append(toString(prev)).append(", next: ").append(toString(next)).append("}");
             return sb.toString();
+        }
+
+        public String toString(Node node){
+            if(node == null){
+                return "null";
+            }
+            return "{i: " + node.i + ", x: " + node.x + ", y: " + node.y + "}";
         }
     }
 }
