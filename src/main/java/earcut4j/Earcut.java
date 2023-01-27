@@ -560,7 +560,7 @@ public final class Earcut {
 
         p = m;
 
-        while (p != stop) {
+        do {
             if (hx >= p.x && p.x >= mx && pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p.x, p.y)) {
 
                 tan = Math.abs(hy - p.y) / (hx - p.x); // tangential
@@ -572,7 +572,7 @@ public final class Earcut {
             }
 
             p = p.next;
-        }
+        } while (p != stop);
 
         return m;
     }
